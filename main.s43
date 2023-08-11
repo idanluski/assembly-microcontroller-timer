@@ -1,0 +1,61 @@
+#include <msp430g2553.h>     ;define controlled include file
+#include "bsp.h"
+
+            NAME    Main
+            PUBLIC state,Main,loopsof 
+            EXTERN SysConfig,TimePrint
+            EXTERN get_run_time,LCD_CLR,sec_timer
+            EXTERN PBs_handler,TIMER_A_ISR
+            EXTERN    StopTime,LCD_CLR,Line1,Line2,CurR,PrintLCDs,TA0_ISR 
+           
+;-------------------------------------------------------------------------------
+            ORG     DataSegStart                  ; Begins a RAM segment
+;-------------------------------------------------------------------------------
+
+state       DW   0   ;start variable
+
+;-------------------------------------------------------------------------------
+            ;RSEG    CSTACK                  ; Begins a relocatable segment name of CSTACK - Define stack segment
+;-------------------------------------------------------------------------------
+            ORG    CodeSegStart                    ; Assemble to Flash memory -like void main in C
+;-----------------------------------------------------------------------------
+
+
+Main         mov.w   #StackTosStart,SP        ; Initialize stack pointer
+StopWDT      mov.w   #WDTPW+WDTHOLD,&WDTCTL  
+             call    #SysConfig
+             bis.w   #GIE,SR
+             
+ 
+        
+;---------------------------- FSM_loop -------------------------------------
+loopsof            
+state0       cmp     #0,state                  ;check if state0           
+             jnz     state1
+             call    #LCD_CLR
+             bis.w   #CPUOFF+GIE,SR 
+
+state1       cmp     #1,state                  ;check if state1                               
+             jnz     state2
+             DINT                           ;disable cutoff (atomic function)
+             call    #TimePrint                 ;infinite function
+             EINT;enable cuoff
+             cmp     #2,state
+             JZ      state2
+             CLR  state
+             jmp state0
+             
+state2       cmp     #2,R9                  ;check if state1                               
+             DINT                           ;disable cutoff (atomic function)
+             call    #get_run_time 
+             EINT
+             bis.w   #CPUOFF+GIE,SR
+             jmp state0
+             
+
+             
+
+             
+            
+;-----------------------------------------------------------------------------
+            END

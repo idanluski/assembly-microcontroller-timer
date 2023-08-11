@@ -1,0 +1,205 @@
+#include "bsp.h"
+
+ 
+               
+                MODULE    API
+                PUBLIC    tic,toc,get_run_time,TimePrint,EZER,show_char,show_num//,UPCHEKING,DOWNCHEKING
+                EXTERN    Lcd_cmd,LCD_DRIVER,sec_timer,time_laps
+                EXTERN    delay, state,EVENT,EVENT_TWO
+                EXTERN    StopTime,LCD_CLR,Line1,Line2,CurR,PrintLCDs,StopTime1
+
+                RSEG      CODE  
+                
+
+;----------------------------------------------------------------------------------------------
+;            TIME PRINT
+;----------------------------------------------------------------------------------------------
+TimePrint    
+             clr   R7//s0
+             clr   R8//s1
+             CLR   R9//s2
+             push  #'0'
+             push  #'0'
+             push  #':'
+
+             push  #'0'
+             push  #'0'
+             call  #PrintLCDs
+             mov   #48,R9
+             mov   #48,R8 
+             mov   #48,R7 
+loop         
+             cmp   #1,state
+             jnz   exit
+             INC   R7 
+             cmp   #58,R7 //9
+             jz    SEC
+             JMP   FINISH
+SEC          mov   #48,R7
+             INC   R8
+             cmp   #54,R8 //6
+             jz    MIN
+             JMP   FINISH
+MIN          mov   #48,R8
+             INC   R9
+             CMP   #50,R9
+             JZ    ENDOFAPP
+             JMP   FINISH
+             
+FINISH       push  R7
+             push  R8
+             push  #':'
+
+             push  R9
+             push  #'0'
+             call  #PrintLCDs
+             jmp   loop
+
+ENDOFAPP     push  #'0'
+             push  #'0'
+             push  #':'
+
+             push  #'2'
+             push  #'0'
+             call  #PrintLCDs
+             call  #LCD_CLR
+exit         call  #StopTime
+             RET
+;----------------------------------------------------------------------------------------------
+;          tiKtok
+;----------------------------------------------------------------------------------------------
+
+tic pop R6
+    call #EVENT_TWO
+    push.w &TA1CCR1
+    PUSH R6
+    RET
+    
+toc pop R6
+    call #EVENT_TWO
+    PUSH.W &TA1CCR1
+    PUSH R6
+    RET    
+
+
+/*UPCHEKING BIS.B 0x04,checkOUT
+          RET
+          
+DOWNCHEKING BIC.B 0x04,checkOUT
+            RET   */       
+;----------------------------------------------------------------------------------------------
+;          GET RUN TIME
+;----------------------------------------------------------------------------------------------
+get_run_time call #time_laps
+             ;call #EZER
+             BIS.B   #0x04, checkOUT
+             call #tic
+;----------------------------------------------------------------------------------------------
+;          script code
+            MOV #2000,R12
+SL          DEC R12
+            JNZ SL
+            
+;----------------------------------------------------------------------------------------------
+             call #toc
+             BIC.B   #0x04, checkOUT
+             pop R7//t1
+             pop R8//t0
+             sub R8,R7//t1-t0
+             push R7 
+             call #EZER
+             CALL #StopTime1
+             ret
+
+;--------------------------------------------------------------------------------------------
+show_char  pop R7 // return adress
+           pop R6// the num we want to show
+           cmp #10 , R6
+           jnz next
+           push #'A'
+           call #LCD_DRIVER
+           JMP FINISH1
+next       cmp #11 , R6
+           jnz next1
+           push #'B'
+           call #LCD_DRIVER
+           JMP FINISH1
+next1      cmp #12 , R6
+           jnz next2
+           push #'C'
+           call #LCD_DRIVER
+           JMP FINISH1
+next2      cmp #13 , R6
+           jnz next3
+           push #'D'
+           call #LCD_DRIVER
+           JMP FINISH1
+next3      cmp #14 , R6
+           jnz next4
+           push #'E'
+           call #LCD_DRIVER
+           JMP FINISH1
+next4      cmp #15 , R6
+           push #'F'
+           call #LCD_DRIVER
+FINISH1    PUSH R7
+           RET
+
+
+show_num   pop R7 // return adress
+           pop R6// the num we want to show
+           add #48, R6
+           push R6
+           call #LCD_DRIVER
+           PUSH R7
+           RET
+
+;----------------------------------------------------------------------------------------------
+EZER       pop R9//return adress
+           pop R11//run time
+           call #Line1
+           push #'R'
+           call #LCD_DRIVER
+           push #'u'
+           call #LCD_DRIVER
+           push #'n'
+           call #LCD_DRIVER
+           push #' '
+           call #LCD_DRIVER
+           push #'t'
+           call #LCD_DRIVER
+           push #'i'
+           call #LCD_DRIVER
+           push #'m'
+           call #LCD_DRIVER
+           push #'e'
+           call #LCD_DRIVER
+           push #':'
+           call #LCD_DRIVER
+           SUB #30,R11
+           call #Line2
+           MOV #4,R13
+MODECC     MOV R11,R8
+           MOV #12,R12
+ROTATE     RRA R11
+           DEC R12
+           JNZ ROTATE
+           AND #0X000F,R11
+           push R11
+           CMP #0X000A,R11
+           JN   num
+           call #show_char
+           jmp  div
+num        call #show_num
+div        RLA R8
+           RLA R8
+           RLA R8
+           RLA R8
+           MOV R8,R11
+           DEC R13
+           JNZ MODECC
+           PUSH R9
+           RET
+;----------------------------------------------------------------------------------------------
+ENDMOD             
+END

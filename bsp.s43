@@ -1,0 +1,115 @@
+#include "bsp.h"
+
+
+
+            
+                MODULE    BSP
+                PUBLIC    GPIOconfig,Lcd_cmd,TIMERconfig,TIMERSetupconfig
+                EXTERN    Delay15, Delay5, Delay02, Lcd_stobe,PBs_handler,sec_timer_ISR,get_run_time,Main
+                EXTERN    StopTime,LCD_CLR,Line1,Line2,CurR,PrintLCDs,TA0_ISR,loopsof
+                RSEG      CODE
+           
+;----------------------------------------------------------------------------------------------
+;             GPIO configuration  
+;----------------------------------------------------------------------------------------------
+GPIOconfig
+             ;POP R12
+PBSETUP      BIC.B   #0x03, PBSEL  //PULL - UP
+             BIC.B   #0x03, PBDIR
+             BIS.B   #0x03, PBIES
+             BIS.B   #0x03, PBIE
+             BIC.B   #0x03, PBIFG
+            
+LCDSETUP     BIC.B   #0xE0,  LCDCONSEL//CON
+             BIS.B   #0xE0,  LCDCONDIR
+             bic.b   #0xFF,LCDSEL
+             bis.b   #0xFF, LCDDIR
+             
+            
+    
+LCDINIT     bic.b  #0xE0,LCDCONOUT
+             call   #Delay15
+             mov.b  #0x3F,LCDOUT
+             call   #Lcd_stobe
+             call   #Delay5
+             mov.b  #0x3F,LCDOUT
+             call   #Lcd_stobe
+             call   #Delay02
+             mov.b  #0x3F,LCDOUT
+             call   #Lcd_stobe
+             PUSH.B #0x3C
+             call   #Lcd_cmd 
+             PUSH.B #0x0F
+             call   #Lcd_cmd 
+             PUSH.B #0x01
+             call   #Lcd_cmd 
+
+             PUSH.B #0x06
+             call   #Lcd_cmd 
+             PUSH.B #0x80
+             call   #Lcd_cmd 
+             PUSH.B #0x02
+             call   #Lcd_cmd
+             ;PUSH R12
+             
+             
+             
+;----------------------------------------------------------------------------------------------
+;            CHECK CONFIG
+;----------------------------------------------------------------------------------------------           
+             BIC.B   #0x04, checkSEL  //PULL - UP
+             BIS.B   #0x04, checkDIR
+             BIC.B   #0x04, checkOUT
+
+             RET
+             
+             
+                        
+;----------------------------------------------------------------------------------------------
+;             LCD COMMAND ROUTIN  
+;----------------------------------------------------------------------------------------------
+Lcd_cmd     POP R6  //RETURN ADRESS     
+            POP.B R12
+            call  #Delay5
+            mov.b R12,LCDOUT
+            call  #Lcd_stobe
+            PUSH R6
+            RET
+            
+            
+           
+;----------------------------------------------------------------------------------------------
+;             Timers configuration  
+;----------------------------------------------------------------------------------------------
+TIMERconfig
+          mov.w  #0xFFFF,TACCR0 //MAX NUMBER
+          BIC    #CCIE,TACCTL0
+          mov.w  #TACLR,TACTL
+          mov    #TASSEL_2+ID_3+MC_3+TAIE,TACTL //UP AND DEOM , SMCLK/8
+          
+          ret
+ 
+;----------------------------------------------------------------------------------------------
+;             TimersSetup configuration  
+;----------------------------------------------------------------------------------------------
+TIMERSetupconfig
+          mov.w  #TACLR,TA1CTL
+          mov.w  #TASSEL_2+MC_3+ID_3,TA1CTL
+          mov.w  #CM_1+SCS+CAF+CCIE,TA1CCTL2
+          
+          ret
+
+;----------------------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------------------------------------------------------------------             
+            COMMON  INTVEC                  ; Interrupt Vectors-Begins a common segment with name of INTVEC 
+;-------------------------------------------------------------------------------------------------------------------------------------------
+            ORG     PORT2_VECTOR            ;PORT2 Interrupt Vector
+            DW      PBs_handler
+            ORG     RESET_VECTOR            ; MSP430 RESET Vector
+            DW      Main     
+            ORG     TIMER0_A1_VECTOR           
+            DW      TA0_ISR 
+            ORG     TIMER1_A0_VECTOR           
+            DW      loopsof
+            ENDMOD
+            END
